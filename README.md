@@ -4,9 +4,9 @@ An 8spine module that uses Prowlarr and Jackett as fallback for music search, st
 
 ## Add to 8spine
 
-Paste this into 8spine and enter your TorBox API key:
+Paste this raw URL into 8spine and enter your TorBox API key:
 
-`https://github.com/nvmindl/8spine-torbox-torznab-module`
+`https://raw.githubusercontent.com/nvmindl/8spine-torbox-torznab-module/master/8spine-torbox-module.js`
 
 ## Config
 
