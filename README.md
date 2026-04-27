@@ -19,7 +19,7 @@ Files:
 
 Add this repo to 8spine:
 
-`{here add the module url for 8spine}`
+`https://github.com/nvmindl/8spine-torbox-torznab-module`
 
 Then enter your TorBox API key.
 
@@ -32,17 +32,6 @@ The module needs:
 - `prowlarrApiKey`
 - `jackettTorznabUrl`
 - `jackettApiKey`
-
-## Suggested URLs
-
-Use the **full Torznab endpoint URL** from your apps instead of guessing paths in code.
-
-Examples:
-
-- Prowlarr: `http://localhost:9696/1/api`
-- Jackett: `http://localhost:9117/api/v2.0/indexers/all/results/torznab/api`
-
-If your setup uses reverse proxies or different indexer IDs, use those exact URLs instead.
 
 ## Config methods
 
