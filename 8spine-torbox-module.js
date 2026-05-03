@@ -1,8 +1,8 @@
 export const TORBOX_TORZNAB_MODULE = `
 const MODULE_ID = 'torbox-torznab';
 const TORBOX_API_BASE = 'https://api.torbox.app/v1/api';
-const TORRENTIO_API = 'https://torrentio-addon-626866336386.europe-west4.run.app/music';
 const TORBOX_SEARCH_API = 'https://search-api.torbox.app';
+const TPB_API = 'https://apibay.org';
 const TORBOX_LOGO = 'https://avatars.githubusercontent.com/u/144096078?s=280&v=4';
 const AUDIO_EXT = ['flac','wav','aiff','alac','ape','m4a','aac','mp3','ogg','opus'];
 
@@ -29,16 +29,27 @@ async function verifyTorBoxKey(apiKey) {
   } catch(e) { return { success: false, error: e.message }; }
 }
 
-async function searchTorrentio(query, limit) {
-  var url = TORRENTIO_API + '/search?q=' + encodeURIComponent(query) + '&limit=' + (limit || 20);
+async function searchTPB(query, limit) {
+  var url = TPB_API + '/q.php?q=' + encodeURIComponent(query) + '&cat=101';
   var r = await fetch(url);
-  if (!r.ok) throw new Error('Torrentio search HTTP ' + r.status);
+  if (!r.ok) throw new Error('TPB search HTTP ' + r.status);
   var json = await r.json();
-  return (json.results || []).map(function(item, i) {
-    var hash = item.infoHash || item.info_hash || '';
-    var magnet = item.magnetLink || item.magnet || (hash ? 'magnet:?xt=urn:btih:' + hash : '');
-    return { id: JSON.stringify({ magnet: magnet, hash: hash, title: item.title || '' }), title: item.title || 'Unknown', artist: item.artist || 'Unknown Artist', album: item.album || 'Torrent', duration: 0, albumCover: '' };
-  });
+  if (!Array.isArray(json) || (json.length === 1 && json[0].id === '0')) return [];
+  var trackers = '&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.tracker.cl%3A1337&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80';
+  return json
+    .filter(function(i) { return Number(i.seeders) > 0; })
+    .sort(function(a, b) { return Number(b.seeders) - Number(a.seeders); })
+    .slice(0, limit || 20)
+    .map(function(item) {
+      var hash = String(item.info_hash || '').toUpperCase();
+      var magnet = 'magnet:?xt=urn:btih:' + hash + '&dn=' + encodeURIComponent(item.name || '') + trackers;
+      var parts = (item.name || '').replace(/[._-]/g, ' ').split(/  +/);
+      var title = item.name || 'Unknown';
+      var artist = 'Unknown Artist';
+      var dash = title.indexOf(' - ');
+      if (dash !== -1) { artist = title.substring(0, dash).trim(); title = title.substring(dash + 3).trim(); }
+      return { id: JSON.stringify({ magnet: magnet, hash: hash, title: item.name || '' }), title: title, artist: artist, album: 'The Pirate Bay', duration: 0, albumCover: '' };
+    });
 }
 
 async function searchProwlarr(query, limit, ctx) {
@@ -104,9 +115,9 @@ async function searchTracks(query, limit, ctx) {
     try { var jr = await searchJackett(query, lim, ctx); if (jr.length) return { tracks: jr.slice(0, lim), total: jr.length }; } catch(e) { console.warn('[TorBox] Jackett:', e.message); }
   }
   try {
-    var tr = await searchTorrentio(query, lim);
+    var tr = await searchTPB(query, lim);
     if (tr.length) return { tracks: tr.slice(0, lim), total: tr.length };
-  } catch(e) { console.warn('[TorBox] Torrentio:', e.message); }
+  } catch(e) { console.warn('[TorBox] TPB:', e.message); }
   var ub = await searchTorboxUsenet(query, lim, ctx);
   return { tracks: ub.slice(0, lim), total: ub.length };
 }
@@ -202,7 +213,7 @@ async function getTrackStreamUrl(trackId, quality, ctx) {
 }
 
 return {
-  id: MODULE_ID, name: 'TorBox + Prowlarr/Jackett', version: '0.7.0',
+  id: MODULE_ID, name: 'TorBox + Prowlarr/Jackett', version: '0.8.0',
   labels: ['TORBOX','TORRENT','PROWLARR','JACKETT'],
   supportedDebridProviders: ['torbox'],
   verifyTorBoxKey: verifyTorBoxKey,
