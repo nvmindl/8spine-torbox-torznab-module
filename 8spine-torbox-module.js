@@ -2,6 +2,7 @@ export const TORBOX_TORZNAB_MODULE = `
 const MODULE_ID = 'torbox-torznab';
 const TORBOX_API_BASE = 'https://api.torbox.app/v1/api';
 const TORRENTIO_API = 'https://torrentio-addon-626866336386.europe-west4.run.app/music';
+const TORBOX_SEARCH_API = 'https://search-api.torbox.app';
 const TORBOX_LOGO = 'https://avatars.githubusercontent.com/u/144096078?s=280&v=4';
 const AUDIO_EXT = ['flac','wav','aiff','alac','ape','m4a','aac','mp3','ogg','opus'];
 
@@ -56,6 +57,22 @@ async function searchJackett(query, limit, ctx) {
   return parseXml(await r.text(), 'jackett');
 }
 
+async function searchTorboxApi(query, limit, ctx) {
+  var apiKey = getKey(ctx);
+  if (!apiKey) throw new Error('TorBox key required for search');
+  var url = TORBOX_SEARCH_API + '/torrent/search/' + encodeURIComponent(query) + '?limit=' + (limit || 20);
+  var r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + apiKey } });
+  if (!r.ok) throw new Error('TorBox search HTTP ' + r.status);
+  var json = await r.json();
+  var results = (json.data && json.data.torrents) || json.data || [];
+  return (Array.isArray(results) ? results : []).map(function(item) {
+    var hash = item.hash || item.info_hash || '';
+    var magnet = item.magnet || (hash ? 'magnet:?xt=urn:btih:' + hash : '');
+    var parts = (item.raw_title || item.title || '').split(' - ');
+    return { id: JSON.stringify({ magnet: magnet, hash: hash, title: item.raw_title || item.title || '' }), title: parts[1] || parts[0] || item.title || 'Unknown', artist: parts[0] || 'Unknown Artist', album: 'TorBox Search', duration: 0, albumCover: '' };
+  }).filter(function(t) { return JSON.parse(t.id).magnet; });
+}
+
 function xmlField(xml, tag) {
   var m = xml.match(new RegExp('<' + tag + '[^>]*>([\\s\\S]*?)<\\/' + tag + '>', 'i'));
   return m ? m[1].replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').trim() : '';
@@ -88,8 +105,12 @@ async function searchTracks(query, limit, ctx) {
   if (gs(ctx, 'jackettTorznabUrl')) {
     try { var jr = await searchJackett(query, lim, ctx); if (jr.length) return { tracks: jr.slice(0, lim), total: jr.length }; } catch(e) { console.warn('[TorBox] Jackett:', e.message); }
   }
-  var tr = await searchTorrentio(query, lim);
-  return { tracks: tr.slice(0, lim), total: tr.length };
+  try {
+    var tr = await searchTorrentio(query, lim);
+    if (tr.length) return { tracks: tr.slice(0, lim), total: tr.length };
+  } catch(e) { console.warn('[TorBox] Torrentio:', e.message); }
+  var tb = await searchTorboxApi(query, lim, ctx);
+  return { tracks: tb.slice(0, lim), total: tb.length };
 }
 
 async function tbFetch(path, apiKey, opts) {
