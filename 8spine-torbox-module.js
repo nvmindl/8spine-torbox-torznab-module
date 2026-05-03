@@ -107,7 +107,7 @@ function parseXml(xml, source) {
 }
 
 async function searchLidarr(query, limit, ctx) {
-  var url = gs(ctx, 'lidarrUrl').replace(/\/+$/, '');
+  var url = gs(ctx, 'lidarrUrl').replace(new RegExp('[/]+$'), '');
   var key = gs(ctx, 'lidarrApiKey');
   if (!url || !key) throw new Error('Lidarr not configured');
   var r = await fetch(url + '/api/v1/album/lookup?term=' + encodeURIComponent(query), { headers: { 'X-Api-Key': key } });
@@ -262,7 +262,7 @@ async function getTrackStreamUrl(trackId, quality, ctx) {
 }
 
 return {
-  id: MODULE_ID, name: 'TorBox + Lidarr/Prowlarr', version: '1.0.0',
+  id: MODULE_ID, name: 'TorBox + Lidarr/Prowlarr', version: '1.0.1',
   labels: ['TORBOX','LIDARR','PROWLARR','JACKETT'],
   supportedDebridProviders: ['torbox'],
   verifyTorBoxKey: verifyTorBoxKey,
